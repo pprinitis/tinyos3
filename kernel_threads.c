@@ -69,7 +69,7 @@ Tid_t sys_ThreadSelf()
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
   
-  PTCB* threadwait = rlist_find(&CURPROC->ptcb_list,(PTCB*)& tid,NULL);
+  PTCB* threadwait = findPtcb(tid);
   if(threadwait==NULL){
     return -1;
   }else{
@@ -98,7 +98,7 @@ int wait_for_specific_thread(PTCB* tid, int* exitval)
   */
 int sys_ThreadDetach(Tid_t tid)
 {
-  PTCB* threaddet = rlist_find(&CURPROC->ptcb_list, (PTCB*)&tid,NULL);
+  PTCB* threaddet = findPtcb(tid);
   if(threaddet!=NULL || threaddet->exited==1){
     threaddet->detached = 1;
     return 0;
@@ -129,8 +129,25 @@ void sys_ThreadExit(int exitval)
   if(is_rlist_empty(&cpr->ptcb_list)){
     sys_Exit(exitval);
   }
+}
+PTCB* findPtcb(Tid_t tid)
+{
 
+  int maxThreads = CURPROC->tread_count;
 
+  for(int i=0; i<maxThreads; i++){
+    rlnode* a = rlist_pop_back(&CURPROC->ptcb_list);
+    if(a->ptcb->tcb==  (TCB*) tid){
+      rlist_push_front(&CURPROC->ptcb_list, a);
+      return (PTCB*) a->ptcb;
+    }
+    rlist_push_front(&CURPROC->ptcb_list, a);
+  }
+  return (PTCB*)0;
 
 }
+
+
+
+
 
