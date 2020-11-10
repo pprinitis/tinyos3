@@ -10,7 +10,7 @@
   */
 Tid_t sys_CreateThread(Task task, int argl, void* args)
 { 
-  PTCB* ptcb = init_ptcb;
+  PTCB* ptcb = init_ptcb(task,argl,args);
   ptcb->tcb = spawn_cthread(CURPROC,ptcb,start_common_thread);
   wakeup(ptcb->tcb);
 	return (Tid_t)ptcb;
@@ -18,9 +18,17 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
 PTCB* init_ptcb(Task task,int argl ,void* args)
 {
   PTCB* ptcb = NULL;
+  if(task==NULL){
+    return 0;
+  }
   ptcb->task = task;
   ptcb->argl = argl;
-  ptcb->args = args;
+
+  if(args!=NULL){
+    ptcb->args = malloc (argl);
+    memcpy(ptcb->args, args, argl);
+  }else
+    ptcb->args = NULL;
 
   ptcb->exited = 0;
   ptcb->detached = 0;
@@ -42,6 +50,7 @@ void start_common_thread()
   int argl = CURPT->argl;
   void* args = CURPT ->args;
 
+  exitval = call(argl,args);
   sys_ThreadExit(exitval);
 }
 
@@ -60,18 +69,28 @@ Tid_t sys_ThreadSelf()
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
   
-  PTCB* threadwait = rlist_find(&CURPROC->ptcb_list, tid,NULL);
+  PTCB* threadwait = rlist_find(&CURPROC->ptcb_list,(PTCB*)& tid,NULL);
   if(threadwait==NULL){
     return -1;
-  }
-  if(threadwait->detached==1){
-    return -1;
-  }
-  while(threadwait->tcb->state==ALIVE)
-    kernel_wait(&CURPT->exit_cv,SCHED_USER);
+  }else{
 
-    
-	return 0;
+    if(threadwait->detached==1){
+     printf("Detached thread are not joinable");
+     return -1;
+    }else{
+    return wait_for_specific_thread(threadwait,exitval);
+    }
+  }
+}
+
+int wait_for_specific_thread(PTCB* tid, int* exitval)
+{
+  PTCB* ct = CURPT;
+  
+  while(tid->tcb->state == RUNNING)
+    kernel_wait(& ct->exit_cv, SCHED_USER);
+
+
 }
 
 /**
@@ -79,7 +98,14 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   */
 int sys_ThreadDetach(Tid_t tid)
 {
-	return -1;
+  PTCB* threaddet = rlist_find(&CURPROC->ptcb_list, (PTCB*)&tid,NULL);
+  if(threaddet!=NULL || threaddet->exited==1){
+    threaddet->detached = 1;
+    return 0;
+  }else{
+    return -1;
+  }
+  
 }
 
 /**
@@ -87,6 +113,24 @@ int sys_ThreadDetach(Tid_t tid)
   */
 void sys_ThreadExit(int exitval)
 {
+  PTCB* cpt = CURPT;
+  PCB* cpr = CURPROC;
+  TCB* tcb = cpt->tcb;
+
+  tcb->state = ZOMBIE;
+  tcb->phase = EXITED;
+  cpt->exited = 1;
+  rlist_remove(&cpt->ptcb_list_node);
+
+  if(cpt->refcount==0){
+
+  }
+
+  if(is_rlist_empty(&cpr->ptcb_list)){
+    sys_Exit(exitval);
+  }
+
+
 
 }
 
