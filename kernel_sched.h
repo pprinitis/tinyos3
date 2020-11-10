@@ -100,7 +100,7 @@ enum SCHED_CAUSE {
 typedef struct thread_control_block {
 
 	PCB* owner_pcb; /**< @brief This is null for a free TCB */
-
+  PTCB* owner_ptcb;
 	cpu_context_t context; /**< @brief The thread context */
 	Thread_type type; /**< @brief The type of thread */
 	Thread_state state; /**< @brief The state of the thread */
@@ -179,6 +179,7 @@ TCB* cur_thread();
   i.e., the thread currently executing on this core.
 */
 #define CURPROC (cur_thread()->owner_pcb)
+#define CURPT (cur_thread()->owner_ptcb)
 
 /**
   @brief A timeout constant, denoting no timeout for sleep.
@@ -201,6 +202,7 @@ TCB* cur_thread();
     @returns  A pointer to the TCB of the new thread, in the @c INIT state.
 */
 TCB* spawn_thread(PCB* pcb, void (*func)());
+TCB* spawn_cthread(PCB* pcb,PTCB* ptcb, void (*func)());
 
 /**
   @brief Wakeup a blocked thread.

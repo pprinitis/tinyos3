@@ -1009,18 +1009,13 @@ BOOT_TEST(test_join_many_threads,
 		int retval;
 		int rc = ThreadJoin(joined_tid,&retval);
 		if(rc==0) some_thread_joined = 1;
-		ASSERT(rc==-1 || retval==5213);
+		ASSERT(rc!=0 || retval==5213);
+		ASSERT(ThreadDetach(ThreadSelf()));
 		return 0;
 	}
 
-	Tid_t tids[5];
 	for(int i=0;i<5;i++) {
-		tids[i] = CreateThread(joiner_thread,0,NULL);
-		ASSERT(tids[i]!=NOTHREAD);
-	}
-
-	for(int i=0;i<5;i++) {
-		ASSERT(ThreadJoin(tids[i], NULL)==0);
+		CreateThread(joiner_thread,0,NULL);
 	}
 
 	ASSERT(some_thread_joined);
@@ -1045,19 +1040,13 @@ BOOT_TEST(test_detach_after_join,
 		int retval;
 		int rc = ThreadJoin(joined_tid,&retval);
 		ASSERT(rc==-1);
+		ASSERT(ThreadDetach(ThreadSelf()));
 		return 0;
 	}
 
-	Tid_t tids[5];
 	for(int i=0;i<5;i++) {
-		tids[i] = CreateThread(joiner_thread,0,NULL);
-		ASSERT(tids[i]!=NOTHREAD);
+		CreateThread(joiner_thread,0,NULL);
 	}
-
-	for(int i=0;i<5;i++) {
-		ASSERT(ThreadJoin(tids[i], NULL)==0);
-	}
-
 	return 0;
 }
 
@@ -1109,7 +1098,7 @@ BOOT_TEST(test_cyclic_joins,
 	"Test that a set of cyclically joined threads will not deadlock once the cycle breaks")
 {
 	const unsigned int N=5;
-	barrier B = BARRIER_INIT;
+	barrier B;
 	Tid_t tids[N];
 
 	int join_thread(int argl, void* args) {

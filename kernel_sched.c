@@ -5,6 +5,7 @@
 #include "kernel_cc.h"
 #include "kernel_proc.h"
 #include "kernel_sched.h"
+#include "kernel_threads.h"
 #include "tinyos.h"
 
 #ifndef NVALGRIND
@@ -149,6 +150,45 @@ static void thread_start()
 /*
   Initialize and return a new TCB
 */
+TCB* spawn_cthread(PCB* pcb,PTCB* ptcb, void (*func)())
+{
+	TCB* tcb = (TCB*)allocate_thread(THREAD_SIZE);
+	tcb->owner_pcb = pcb;
+	tcb->owner_ptcb = ptcb;
+
+		/* Initialize the other attributes */
+	tcb->type = NORMAL_THREAD;
+	tcb->state = INIT;
+	tcb->phase = CTX_CLEAN;
+	tcb->thread_func = func;
+	tcb->wakeup_time = NO_TIMEOUT;
+	rlnode_init(&tcb->sched_node, tcb); /* Intrusive list node */
+
+	tcb->its = QUANTUM;
+	tcb->rts = QUANTUM;
+	tcb->last_cause = SCHED_IDLE;
+	tcb->curr_cause = SCHED_IDLE;
+
+	/* Compute the stack segment address and size */
+	void* sp = ((void*)tcb) + THREAD_TCB_SIZE;
+
+	/* Init the context */
+	cpu_initialize_context(&tcb->context, sp, THREAD_STACK_SIZE, thread_start);
+
+#ifndef NVALGRIND
+	tcb->valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, sp + THREAD_STACK_SIZE);
+#endif
+
+	/* increase the count of active threads */
+	Mutex_Lock(&active_threads_spinlock);
+	active_threads++;
+	Mutex_Unlock(&active_threads_spinlock);
+
+	return tcb;
+}
+/*
+  Initialize and return a new TCB
+*/
 
 TCB* spawn_thread(PCB* pcb, void (*func)())
 {
@@ -157,6 +197,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 
 	/* Set the owner */
 	tcb->owner_pcb = pcb;
+	//tcb->owner_ptcb =ptcb;
 
 	/* Initialize the other attributes */
 	tcb->type = NORMAL_THREAD;
