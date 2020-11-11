@@ -68,7 +68,10 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
-  
+  if(tid<1){
+    printf("illegal tid ");
+    return -1;
+  }
   PTCB* threadwait = findPtcb(tid);
   if(threadwait==NULL){
     return -1;
@@ -98,6 +101,12 @@ int wait_for_specific_thread(PTCB* tid, int* exitval)
   */
 int sys_ThreadDetach(Tid_t tid)
 {
+
+    if(tid<1){
+    printf("illegal tid ");
+    return -1;
+  }
+  
   PTCB* threaddet = findPtcb(tid);
   if(threaddet!=NULL || threaddet->exited==1){
     threaddet->detached = 1;
