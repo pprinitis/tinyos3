@@ -194,7 +194,6 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 {
 	/* The allocated thread size must be a multiple of page size */
 	TCB* tcb = (TCB*)allocate_thread(THREAD_SIZE);
-
 	/* Set the owner */
 	tcb->owner_pcb = pcb;
 

@@ -123,7 +123,7 @@ void start_main_thread()
   void* args = CURPROC->args;
 
   exitval = call(argl,args);
-  sys_ThreadExit(exitval);
+  sys_Exit(exitval);
 }
 void start_common_thread()
 {
@@ -190,11 +190,11 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     the initialization of the PCB.
    */
   if(call != NULL) {
+    newproc->tread_count=0;
     PTCB* ptcb = makePTCB(newproc,newproc->main_task,newproc->argl,newproc->args);
     newproc->main_thread = spawn_thread(newproc, start_main_thread);
     ptcb->tcb = newproc->main_thread;
     newproc->main_thread->owner_ptcb=ptcb;
-    //newproc->main_thread = spawn_thread(newproc, start_main_thread);
     wakeup(newproc->main_thread);
   }
 
@@ -303,7 +303,7 @@ Pid_t sys_WaitChild(Pid_t cpid, int* status)
 
 void sys_Exit(int exitval)
 {
-
+  
   PCB *curproc = CURPROC;  /* cache for efficiency */
 
   /* First, store the exit status */

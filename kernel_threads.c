@@ -12,8 +12,10 @@
 
 Tid_t sys_CreateThread(Task task, int argl, void* args)
 { 
-  PTCB* ptcb = makePTCB(CURPROC,task,argl,args);
-  TCB* tcb = spawn_thread(CURPROC,start_common_thread);
+  PCB* curproc = CURPROC;
+  curproc->tread_count++;
+  PTCB* ptcb = makePTCB(curproc,task,argl,args);
+  TCB* tcb = spawn_thread(curproc,start_common_thread);
   ptcb->tcb = tcb;
   tcb->owner_ptcb = ptcb;
   wakeup(ptcb->tcb);
@@ -36,7 +38,7 @@ PTCB* makePTCB(PCB* pcb,Task task, int argl, void* args)
   rlnode_init(&ptcb->ptcb_list_node, ptcb);
   rlnode_init(&pcb->ptcb_list,&pcb);
   rlist_push_front(&pcb->ptcb_list,&ptcb->ptcb_list_node);
-  pcb->tread_count+=1;
+  //pcb->tread_count+=1;
 
   return ptcb;
 }
@@ -113,17 +115,19 @@ int sys_ThreadDetach(Tid_t tid)
   */
 void sys_ThreadExit(int exitval)
 {
+ 
   PCB *pcb =CURPROC;
   PTCB *ptcb = CURPT; 
-  pcb->tread_count--;
+  pcb->tread_count-=1;
+
   ptcb->exited=1;
   ptcb->exitval=exitval;
   ptcb->tcb = NULL;
-  if(ptcb->refcount==1)
-  rlist_remove(&ptcb->ptcb_list_node);
   //kernel_broadcast(&ptcb->exit_cv);
-
-  if(pcb->tread_count==1){
+  if(ptcb->refcount==1){
+    rlist_remove(&ptcb->ptcb_list_node); 
+  }
+  if(pcb->tread_count==0){
     sys_Exit(exitval);
   }
   kernel_sleep(EXITED,SCHED_USER);
