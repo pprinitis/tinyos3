@@ -1,5 +1,6 @@
 
 #include "tinyos.h"
+#include "kernel_streams.h"
 #include "kernel_sched.h"
 #include "kernel_proc.h"
 #include "kernel_threads.h"
@@ -8,51 +9,39 @@
 /** 
   @brief Create a new thread in the current process.
   */
+
 Tid_t sys_CreateThread(Task task, int argl, void* args)
 { 
-  PTCB* ptcb = init_ptcb(task,argl,args);
-  ptcb->tcb = spawn_cthread(CURPROC,ptcb,start_common_thread);
+  PTCB* ptcb = makePTCB(CURPROC,task,argl,args);
+  TCB* tcb = spawn_thread(CURPROC,start_common_thread);
+  ptcb->tcb = tcb;
+  tcb->owner_ptcb = ptcb;
   wakeup(ptcb->tcb);
 	return (Tid_t)ptcb;
 }
-PTCB* init_ptcb(Task task,int argl ,void* args)
+
+PTCB* makePTCB(PCB* pcb,Task task, int argl, void* args)
 {
-  PTCB* ptcb = NULL;
-  if(task==NULL){
-    return 0;
-  }
-  ptcb->task = task;
-  ptcb->argl = argl;
-
-  if(args!=NULL){
-    ptcb->args = malloc (argl);
-    memcpy(ptcb->args, args, argl);
-  }else
-    ptcb->args = NULL;
-
+  PTCB *ptcb =xmalloc(sizeof(PTCB));
+  
+  ptcb->argl=argl;
+  ptcb->args=args;
+  ptcb->task=task;
+  ptcb->exitval=0;
   ptcb->exited = 0;
   ptcb->detached = 0;
   ptcb->exit_cv = COND_INIT;
-  ptcb->refcount = 0;
+  ptcb->refcount = 1;
 
-  rlnode_init(& ptcb->ptcb_list_node, ptcb);
-  rlist_push_front(& CURPROC->ptcb_list, &ptcb->ptcb_list_node);
-  CURPROC->tread_count+=1;
+  rlnode_init(&ptcb->ptcb_list_node, ptcb);
+  rlnode_init(&pcb->ptcb_list,&pcb);
+  rlist_push_front(&pcb->ptcb_list,&ptcb->ptcb_list_node);
+  pcb->tread_count+=1;
 
   return ptcb;
-
 }
-void start_common_thread()
-{
-  int exitval;
 
-  Task call = CURPT->task;
-  int argl = CURPT->argl;
-  void* args = CURPT ->args;
 
-  exitval = call(argl,args);
-  sys_ThreadExit(exitval);
-}
 
 
 /**
@@ -68,52 +57,54 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
-  if(tid<1){
-    printf("illegal tid ");
+  PTCB* ptcb = (PTCB*) tid;
+  if(rlist_find(&CURPROC->ptcb_list,ptcb,NULL)==NULL){
     return -1;
   }
-  PTCB* threadwait = findPtcb(tid);
-  if(threadwait==NULL){
+  if(ptcb->detached==1){
     return -1;
-  }else{
-
-    if(threadwait->detached==1){
-     printf("Detached thread are not joinable");
-     return -1;
-    }else{
-    return wait_for_specific_thread(threadwait,exitval);
-    }
   }
+  if(sys_ThreadSelf()==tid){
+    return -1;
+  }
+  PTCB* waitptcb = (PTCB*) sys_ThreadSelf();
+
+  waitptcb ->refcount++;
+
+  while(ptcb->exited==0 && ptcb->detached==0){
+    kernel_wait(&ptcb->exit_cv,SCHED_USER);
+  }
+  if(exitval != NULL){
+    *exitval = ptcb->exitval;
+  }
+  ptcb->refcount --;
+
+  return 0;
+ 
 }
 
-int wait_for_specific_thread(PTCB* tid, int* exitval)
-{
-  PTCB* ct = CURPT;
-  
-  while(tid->tcb->state == RUNNING)
-    kernel_wait(& ct->exit_cv, SCHED_USER);
 
-
-}
 
 /**
   @brief Detach the given thread.
   */
 int sys_ThreadDetach(Tid_t tid)
 {
-
-    if(tid<1){
-    printf("illegal tid ");
-    return -1;
+  
+  PTCB* ptcb = (PTCB*) tid;
+  if(sys_ThreadSelf()==tid &&ptcb->exited!=1){
+    ptcb->detached=1;
+    return 0;
   }
   
-  PTCB* threaddet = findPtcb(tid);
-  if(threaddet!=NULL || threaddet->exited==1){
-    threaddet->detached = 1;
-    return 0;
-  }else{
+  if(rlist_find(&CURPROC->ptcb_list,ptcb,NULL)==NULL){
     return -1;
   }
+  if(ptcb->exited==1){
+    return -1;
+  }
+  ptcb->detached=1;
+  return 0;
   
 }
 
@@ -122,39 +113,21 @@ int sys_ThreadDetach(Tid_t tid)
   */
 void sys_ThreadExit(int exitval)
 {
-  PTCB* cpt = CURPT;
-  PCB* cpr = CURPROC;
-  TCB* tcb = cpt->tcb;
+  PCB *pcb =CURPROC;
+  PTCB *ptcb = CURPT; 
+  pcb->tread_count--;
+  ptcb->exited=1;
+  ptcb->exitval=exitval;
+  ptcb->tcb = NULL;
+  if(ptcb->refcount==1)
+  rlist_remove(&ptcb->ptcb_list_node);
+  //kernel_broadcast(&ptcb->exit_cv);
 
-  tcb->state = ZOMBIE;
-  tcb->phase = EXITED;
-  cpt->exited = 1;
-  rlist_remove(&cpt->ptcb_list_node);
-
-  if(cpt->refcount==0){
-
-  }
-
-  if(is_rlist_empty(&cpr->ptcb_list)){
+  if(pcb->tread_count==1){
     sys_Exit(exitval);
   }
-}
-PTCB* findPtcb(Tid_t tid)
-{
-
-  int maxThreads = CURPROC->tread_count;
-
-  for(int i=0; i<maxThreads; i++){
-    rlnode* a = rlist_pop_back(&CURPROC->ptcb_list);
-    if(a->ptcb->tcb==  (TCB*) tid){
-      rlist_push_front(&CURPROC->ptcb_list, a);
-      return (PTCB*) a->ptcb;
-    }
-    rlist_push_front(&CURPROC->ptcb_list, a);
+  kernel_sleep(EXITED,SCHED_USER);
   }
-  return (PTCB*)0;
-
-}
 
 
 

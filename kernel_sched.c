@@ -197,7 +197,6 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 
 	/* Set the owner */
 	tcb->owner_pcb = pcb;
-	//tcb->owner_ptcb =ptcb;
 
 	/* Initialize the other attributes */
 	tcb->type = NORMAL_THREAD;

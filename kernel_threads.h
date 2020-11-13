@@ -19,7 +19,8 @@ typedef struct process_thread_control_block
     rlnode ptcb_list_node;
 }PTCB;
 
-PTCB* init_ptcb(Task task, int argl, void* args);
+PTCB* init_ptcb(PTCB* ptcb,Task task, int argl, void* args);
 void start_common_thread();
 int wait_for_specific_thread(PTCB* tid, int* exitval);
 PTCB* findPtcb(Tid_t tid);
+PTCB* makePTCB(PCB* pcb,Task task, int argl, void* args);
