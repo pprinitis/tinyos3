@@ -283,6 +283,6 @@ void initialize_scheduler(void);
 
 /** @} */
 #define PRIORITY_QUEUES 20 //Number of priority queues of Scheduler
-#define MAX_YIELD_CALLS 1500
+#define MAX_YIELD_CALLS 1000
 void priority_boost();
 #endif
