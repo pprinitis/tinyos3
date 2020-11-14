@@ -117,6 +117,7 @@ typedef struct thread_control_block {
 	enum SCHED_CAUSE curr_cause; /**< @brief The endcause for the current time-slice */
 	enum SCHED_CAUSE last_cause; /**< @brief The endcause for the last time-slice */
 
+  int priority;
 #ifndef NVALGRIND
 	unsigned valgrind_stack_id; /**< @brief Valgrind helper for stacks. 
 
@@ -281,5 +282,7 @@ void initialize_scheduler(void);
 #define QUANTUM (10000L)
 
 /** @} */
-
+#define PRIORITY_QUEUES 10 //Number of priority queues of Scheduler
+#define MAX_YIELD_CALLS 100
+void priority_boost();
 #endif

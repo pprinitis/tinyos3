@@ -38,8 +38,6 @@ PTCB* makePTCB(PCB* pcb,Task task, int argl, void* args)
   rlnode_init(&ptcb->ptcb_list_node, ptcb);
   rlnode_init(&pcb->ptcb_list,&pcb);
   rlist_push_front(&pcb->ptcb_list,&ptcb->ptcb_list_node);
-  //pcb->tread_count+=1;
-
   return ptcb;
 }
 
