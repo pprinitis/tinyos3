@@ -282,7 +282,7 @@ void initialize_scheduler(void);
 #define QUANTUM (10000L)
 
 /** @} */
-#define PRIORITY_QUEUES 10 //Number of priority queues of Scheduler
-#define MAX_YIELD_CALLS 100
+#define PRIORITY_QUEUES 20 //Number of priority queues of Scheduler
+#define MAX_YIELD_CALLS 1500
 void priority_boost();
 #endif
