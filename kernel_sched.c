@@ -373,7 +373,7 @@ static TCB* sched_queue_select(TCB* current)
 	for(int cur_queue=PRIORITY_QUEUES-1;cur_queue>=0;cur_queue--)
 	{
 		if(!is_rlist_empty(&SCHED[cur_queue])){
-			/* Get the head of the SCHED list */
+			/* Get the head of the current SCHED priority queue */
 			select = rlist_pop_front(&SCHED[cur_queue]);	
 			break;
 		}

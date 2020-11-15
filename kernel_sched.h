@@ -283,6 +283,6 @@ void initialize_scheduler(void);
 
 /** @} */
 #define PRIORITY_QUEUES 20 //Number of priority queues of Scheduler
-#define MAX_YIELD_CALLS 1000
-void priority_boost();
+#define MAX_YIELD_CALLS 1000 //Number of max yield() calls before boosting all threads priority
+void priority_boost();       //Function for boosting all threads priority   
 #endif
